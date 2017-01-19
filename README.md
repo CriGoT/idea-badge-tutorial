@@ -1,10 +1,10 @@
-# iDEA Badge Setup
+# iDEA Badge Tutorial
 
 In this document we are going to go through the practical steps of creating your very own iDEA badge.
 
 ## About this guide
 
-We assume you have a basic understanding of how the world-wide web works, a basic understanding of development tools such as text editors and the terminal, and a basic understanding of programming.
+We assume you have a basic understanding of web technologies (HTTP, HTML, etc), a basic understanding of development tools such as text editors and the terminal, and a basic understanding of programming in PHP.
 
 In this guide we will be using PHP, Heroku and Git.
 
@@ -25,6 +25,9 @@ PHP already comes preinstalled
 php -v
 ```
 
+###Create a Git repository
+
+
 ###Install Composer
 
 ```
@@ -40,25 +43,22 @@ yadda yadda
 ## Authenticating the user with Auth0
 
 
-We'll now go through the steps involved in creating an `index.php` file to authenticate users when they land on your badge site. The `index.php` file is the default page which will be served by the web server, when someone lands on your badge site.
+We'll now go through the steps involved in creating an `index.php` file to authenticate users when they land on your badge site.
 
-Normally, `index.php` would consist of your website's home page, but in the case of building a badge site, when someone lands on the badge instead of serving any content, we immediately want to redirect them to Auth0 to check for their authorisation status.
+When someone lands on your badge site, instead of serving any content, we immediately want to redirect them to Auth0 to check for their authorisation status.
 
 Typically, the user will already be logged into the iDEA hub site, so they will already have a valid logged-in session with Auth0, which means that they won't be prompted to login again at Auth0, and will be _immediately_ redirected back to your badge site.
 
-We'll now take you through the step-by-step process of creating your `index.php`.
-
 ### Creating the page, step-by-step
 
-The first thing you always need to do when creating a PHP page is open a new PHP tag. This tells the web server that we're writing PHP code, rather than HTML:-
+The first thing you always need to do is open our `<?php` tag and call `session_start()` to start a new session (or resume an existing one).
+
+> ####Sessions
+>Sessions are a way of storing data between visits to a webpage, and passing data between pages on a website. The most common form of sessions are stored as cookies, which you are probably already familiar with.
 
 ```php
 <?php
-```
 
-Next, we need to call `session_start()` to start a new session (or resume an existing one). Sessions are a way of storing data between visits to a webpage, and passing data between pages on a website. The most common form of sessions are stored as cookies, which you are probably already familiar with.
-
-```php
 session_start();
 ```
 
@@ -113,10 +113,6 @@ header("Location: $authUrl");
 ```
 
 
-```php
-exit;
-```
-
 ###Putting it all together
 
 Having followed the above steps, you should now have the following code:
@@ -140,7 +136,6 @@ $params = [
 $authUrl = 'https://idea.eu.auth0.com/i/oauth2/authorize?' . http_build_query($params);
 
 header("Location: $authUrl");
-exit;
 ```
 
 You can save this file as `index.php`.
@@ -158,7 +153,7 @@ The redirect back to your site will include two query string parameters in the U
 
 As before, we will now go through the code line-by-line of how you 
 
-Just like before, we need to open a new PHP tag, and start the session (note that this does not start a new session if one already exists, rather it will resume the existing session that the user started in `index.php` earlier):
+Just like before, we need to open a new PHP tag, and start (resume) the session (note that this does not start a new session if one already exists, rather it will resume the existing session that the user started in `index.php` earlier):
 
 ```php
 <?php
@@ -180,7 +175,7 @@ if (!isset($code)) {
    exit('Failed to get an authorization code');
 }
 ```
-Next, we need to check that a `state` was sent back, and that the `state` is the same as the `oauth2_state` variable we stored in the session earlier in `index.php`:
+Next, we need to check that a `state` was sent back, and that the `state` is the same as the `oauth2_state` variable we stored in the session earlier in `index.php` (this is the protection against CSRF attacks):
 
 ```
 if (isset($state) && $state !== $_SESSION['oauth2_state']) {
@@ -204,14 +199,14 @@ The process of exchanging the authorization code for an access token is done by 
 * `code` - the code we received in the query string
 * `grant_type` - the type of OAuth2 flow we are using (in this case as it is a server-side web application, we specify `authorization_code`)
 
-There are various ways to make HTTP calls in PHP (most notably using cURL), however for readability and ease-of-use, we advise using [Guzzle](http://docs.guzzlephp.org/en/latest/), a popular open-source PHP HTTP client. If you followed the Getting Started section of this guide, Guzzle should already be installed, but if not please install it now before proceeding.
+There are various ways to make HTTP requests in PHP (most notably using cURL), however for readability and ease-of-use, we advise using [Guzzle](http://docs.guzzlephp.org/en/latest/), a popular open-source PHP HTTP client. If you followed the Getting Started section of this guide, Guzzle should already be installed, but if not please install it now before proceeding.
 
-When using Guzzle, we first need to create a new client:-
+When using Guzzle, we first need to create a new HTTP client:-
 
 ```
 $client = new \GuzzleHttp\Client();
 ```
-We can now proceed with making a new Guzzle request, in this case we specify it is a `POST` request, we pass in the Auth0 token exchange URL, and set the `form_params` to the values described above.
+We can now proceed with making a new request, in this case we specify it is a `POST` request, pass in the Auth0 token exchange URL, and set the `form_params` to the values described above.
 
 `form_params` specifies that the data will be sent in `application/x-www-form-urlencoded` format.
 
@@ -260,7 +255,7 @@ php -S localhost:3000
 
 Which will start PHP's built-in web server on your local machine (`localhost`) on port 3000.
 
-You can then open a browser at `http://localhost:3000` to visit your badge site.
+You can now open a browser at `http://localhost:3000` to visit your brand new badge site!
 
 ###Troubleshooting
 
