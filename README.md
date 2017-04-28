@@ -1,8 +1,10 @@
-# iDEA Badge Tutorial
+#iDEA Badge Tutorial
 
-In this document we are going to go through the practical steps of creating your very own iDEA badge.
+In this guide we are going to go through the practical steps of creating your very own iDEA badge.
 
-## About this guide
+This guide is intended as a "living document" which will be improved over time. If you notice anything which you feel could be improved, or any errors please contact us.
+
+##🤓 About this guide
 
 We assume you have a basic understanding of, and familiarity with:
 
@@ -10,28 +12,53 @@ We assume you have a basic understanding of, and familiarity with:
 * Development tools such as text editors, Git and the terminal
 * Programming in PHP
 
-In this guide we will be using PHP, Heroku and Git to build and deploy an iDEA badge from scratch.
+In this guide we will be using [PHP](http://www.php.net/), [Heroku](https://www.heroku.com/) and [Git](https://git-scm.com/) to build and deploy an iDEA badge from scratch.
 
-At the end of the guide, we'll also give you a brief overview of some more advanced topics, such as exploring JWTs, and using PHP frameworks.
+##🤷‍♂️ Prerequisites
 
-## Prerequisites
+Before you begin, you will need to apply for a Client ID and Client Secret for your badge site. You will need to contact iDEA to receive those credentials, and you will need to provide:
 
-Before we begin, you should already have your badge credentials, consisting of:
+1. The name of your badge site
+* The URL of your badge site
+* The redirect (callback) URL for your badge site
+* The logout URL for your badge site
+
+If you will be following this guide and initially developing and testing your badge site locally, you can use the following URLs:
+
+* Badge site URL: `http://localhost:8000`
+* Redirect (callback) URL: `http://localhost:8000/callback.php`
+* Logout URL: `http://localhost:8000/logout.php`
+
+Please note that if you are intending to deploy to Heroku, you will need to provide updated URLs in due course.
+
+Once you have provided these details you will then be issued with your badge credentials, consisting of:
 
 * Client ID
 * Client Secret
 
-You should also have provided 
+If you wish to deploy your badge site to Heroku, you will also need to register for a free Heroku account. 
 
-## Setting up a local development environment
+##💻 Setting up a local development environment
 
-###Install PHP
+###Install PHP & Web Server
 
-PHP already comes preinstalled 
+####macOS/Linux Users
+
+PHP and Apache already come preinstalled on macOS and some Linux distributions. To check you have PHP pre-installed, run the following from a terminal:
 
 ```
 php -v
 ```
+
+If you don't have PHP installed or it is outdated then you should install the latest version of PHP via [Homebrew](https://brew.sh/).
+
+####Windows Users
+
+The easiest way to get setup with Apache & PHP on Windows is to install [WampServer](http://www.wampserver.com/en/).
+
+###Create a directory to hold your badge site
+
+You should create a new directory (folder) on your machine to hold your badge site. We'll refer to this in the guide as your badge site root directory.
 
 ###Create a Git repository
 
@@ -39,9 +66,11 @@ To start with, you will need to create a new Git repository on your computer. A 
 
 >####GitHub####
 >
->You may wish to set yourself up with an account on [GitHub](https://www.github.com/), a popular cloud-based Git hosting platform. This will allow other developers (either in your private team, or on the web) to view your code, and fork it or contribute their own changes or updates. It also provides a more friendly GUI for managing your repositories. This guide doesn't require the use of GitHub, so we'll only create a local repository, and push it to Heroku.
+>You may wish to set yourself up with an account on [GitHub](https://www.github.com/), a popular cloud-based Git hosting platform. This will allow other developers (either in your private team, or on the web) to view your code, and fork it or contribute their own changes or updates. It also provides a more friendly GUI for managing your repositories. This guide doesn't require the use of GitHub, so we'll only create a local repository, and push it directly to Heroku.
 
-`git lllll`
+To create a new Git repository, simply run the following terminal command from your badge site root directory:
+
+`git init`
 
 ###Install Composer
 
@@ -57,21 +86,51 @@ php -r "unlink('composer-setup.php');"
 
 ###Install Guzzle
 
-yadda yadda
+You can now install [Guzzle](https://guzzle3.readthedocs.io/) using Composer. To install, first you need to create a new `composer.json` file in your badge site root directory, with the following contents:
+
+```
+{
+    "require": {
+        "guzzlehttp/guzzle": "~6.0"
+    }
+}
+```
+
+You can then run `composer install` from the terminal which will install Guzzle for you, along with any associated dependencies.
 
 ###Setting up environment variables
 
 When creating our badge site we're going to need to handle various variables specific to our project and environment.
 
 > ####Environment Variables
-> Environment variables are a set of system-wide variables that . The most famous of these is perhaps `PATH` which consists of a set of paths which are checked when a user types a command in the terminal without providing the full path.
+> Environment variables are a set of system-wide global variables that can be read/written by any application running on your machine. You may already be familiar with `PATH` which is an OS-specific environment variable consisting of a set of paths which are checked when a user types a command in the terminal without providing the full path.
 
-## Authenticating the user with Auth0
+We are going to setup some environment variables which will hold our client ID, client secret and callback (redirect) URL. These variables can then be accessed by our PHP code.
 
+Adding environment variables depends on your OS. On macOS you can add the following to your `~/.bash_profile` file:
+
+```
+export GENIUS_BADGE_CLIENT_ID="__your_client_id__"
+export GENIUS_BADGE_CLIENT_SECRET="__your_client_secret__"
+export GENIUS_BADGE_REDIRECT_URI="http://localhost:8000/callback.php"
+```
+
+Windows users can follow [this guide](http://www.computerhope.com/issues/ch000549.htm) to adding environment variables.
+
+> ####Environments and Security
+> You might be wondering why we don't simply hard-code these values into our script, or store them as constants in our PHP code. There are two important reasons for this:
+>
+> 1. These values (our redirect URL in particular) are *environment specific* - our callback URL when running in our local environment will be different when we deploy on Heroku, so it makes sense to set these values at the system level, rather than within our code.
+> 
+> 2. For security reasons, you should never commit credentials such as your Client Secret to your Git repository, as this may not be secure. Putting your Client Secret only on your local machine and deployment server ensures that you have very tight control over who has visibility of those credentials.
+
+This now completes your local development environment setup, and you are ready to start coding!
+
+##🔑 Authenticating the user with Auth0
 
 We'll now go through the steps involved in creating an `index.php` file to authenticate users when they land on your badge site.
 
-When someone lands on your badge site, instead of serving any content, we immediately want to redirect them to Auth0 to check for their authorisation status.
+When someone lands on your badge site, instead of serving any content (i.e. your badge), we first need to redirect them to Auth0 to check for their authorisation status.
 
 Typically, when originating from the iDEA hub site, the user will already be logged into iDEA, so they will already have a valid logged-in session with Auth0, which means that they won't be prompted to login again at Auth0, and will be _immediately_ redirected back to your badge site.
 
@@ -88,7 +147,7 @@ The first thing you always need to do is open our `<?php` tag and call `session_
 session_start();
 ```
 
-Next, we need to generate a random state, to prevent against CSRF attacks against our new badge site.
+Next, we need to generate a random "state" identifier, to prevent against CSRF attacks against our new badge site.
 
 > ####CSRF Attacks
 > A Cross-Site Request Forgery (CSRF) attack involves an attacker exploiting the trust that a site has in a user's browser. The attacker typically embeds an HTML image tag (or malicious link) on a webpage (e.g. a public forum). When the victim's browser loads the "image" URL (which is actually a specially-crafted URL to perform an action on the user's behalf without their knowledge), it also sends the session cookies for that site if the user was already signed-in to that site.
@@ -121,8 +180,8 @@ Next, we need to build the authentication URL, to which the user is going to be 
 ```php
 $params = [
    'response_type' => 'code',
-   'client_id' => getenv(''),
-   'redirect_uri' => getenv('https://contoso.com/auth/callback'),
+   'client_id' => getenv('GENIUS_BADGE_CLIENT_ID'),
+   'redirect_uri' => getenv('GENIUS_BADGE_REDIRECT_URI'),
    'scope' => 'openid',
    'state' => $state
 ];
@@ -139,7 +198,7 @@ header("Location: $authUrl");
 
 ###Putting it all together
 
-Having followed the above steps, you should now have the following code:
+Having followed the above steps, you should now have the following code in your `index.php` file:
 
 ```php
 <?php
@@ -151,8 +210,8 @@ $_SESSION['oauth2_state'] = $state;
 
 $params = [
    'response_type' => 'code',
-   'client_id' => '__YOUR__CLIENT__ID__',
-   'redirect_uri' => 'https://contoso.com/auth/callback',
+   'client_id' => getenv('GENIUS_BADGE_CLIENT_ID'),
+   'redirect_uri' => getenv('GENIUS_BADGE_REDIRECT_URI'),
    'scope' => 'openid',
    'state' => $state
 ];
@@ -164,7 +223,7 @@ header("Location: $authUrl");
 
 You can save this file as `index.php`, and are ready to proceed with the next step of the project.
 
-##Exchange the authorization code for an access token
+##🤝 Exchange the authorization code for an access token
 
 Once the user has finished authenticating with Auth0, they will then be redirected back to your badge site, at the `redirect_uri` you provided in your original redirect to Auth0.
 
@@ -246,9 +305,9 @@ We can now proceed with making a new request, in this case we specify it is a `P
 ```php
 $res = $client->request('POST', 'https://idea.eu.auth0.com/oauth/token', [
      'form_params' => [
-          'client_id' => self::CLIENT_ID,
-          'client_secret' => self::CLIENT_SECRET,
-          'redirect_uri' => 'https://contoso.com/profile',
+          'client_id' => getenv('GENIUS_BADGE_CLIENT_ID'),
+          'client_secret' => getenv('GENIUS_BADGE_CLIENT_SECRET'),
+          'redirect_uri' => getenv('GENIUS_BADGE_REDIRECT_URI'),
           'code' => $code,
           'grant_type' => 'authorization_code'
      ]
@@ -264,7 +323,7 @@ $json = json_decode($res->getBody());
 We can now extract the `acccess_token` and `id_token` from the JSON response, and store it in the user's session:
 
 ```php
-$_SESSION['oauth2_access_token'] = $json->access_token,
+$_SESSION['oauth2_access_token'] = $json->access_token;
 $_SESSION['oauth2_id_token'] = $json->id_token;
 ```
 With that, we are now done, so we can now redirect the user straight to our badge page:
@@ -275,10 +334,12 @@ header('Location: badge.php');
 
 ###Putting it all together
 
-Having followed the above steps, you should now have the following code:
+Having followed the above steps, you should now have the following code in your `callback.php` file:
 
 ```php
 <?php
+
+require 'vendor/autoload.php';
 
 session_start();
 
@@ -298,9 +359,9 @@ $client = new \GuzzleHttp\Client();
 
 $res = $client->request('POST', 'https://idea.eu.auth0.com/oauth/token', [
      'form_params' => [
-          'client_id' => '__YOUR__CLIENT__ID__',
-          'client_secret' => '__YOUR__CLIENT__SECRET__',
-          'redirect_uri' => 'http://localhost:8000/callback.php',
+          'client_id' => getenv('GENIUS_BADGE_CLIENT_ID'),
+          'client_secret' => getenv('GENIUS_BADGE_CLIENT_SECRET'),
+          'redirect_uri' => getenv('GENIUS_BADGE_REDIRECT_URI'),
           'code' => $code,
           'grant_type' => 'authorization_code'
      ]
@@ -308,7 +369,7 @@ $res = $client->request('POST', 'https://idea.eu.auth0.com/oauth/token', [
 
 $json = json_decode($res->getBody());
 
-$_SESSION['oauth2_access_token'] = $json->access_token,
+$_SESSION['oauth2_access_token'] = $json->access_token;
 $_SESSION['oauth2_id_token'] = $json->id_token;
 
 header('Location: badge.php');
@@ -318,9 +379,11 @@ With the authentication process now completed, we now have an `access_token` whi
 
 We are now redirected to `badge.php`, and with the authentication out of the way, we  are finally ready to begin building the badge content itself!
 
-##Getting the user's profile information
+##👤 Getting the user's profile information
 
 Many badge sites will want to obtain profile information for a user, so that their experience can be customised on your site with their name and avatar, for example. A user's profile can be accessed via the iDEA REST API.
+
+We'll call this file `badge.php`.
 
 > For security and privacy reasons, iDEA only exposes minimal profile information to badge sites. You can only access the user's first name, and their profile image avatar.
 
@@ -389,7 +452,7 @@ Finally, its time to write some HTML to render the badge page itself. We're goin
 
 This page has an `<h1>` header tag which echoes the user's name, and an `<img>` tag which contains the user's profile (avatar) image.
 
-##Creating a basic badge task
+##🔨 Creating a basic badge task
 
 Our badge site is going to be incredibly simple and easy: all the user has to do is a click a link saying "I Am A Genius" to complete the badge, and be awarded their points.
 
@@ -409,7 +472,48 @@ Let's add this link to our existing `badge.php` site, as an additional `<p>` tag
 
 When the user clicks the link, they will be taken to `badge-completed.php` which will handle the process of awarding them with the points via the iDEA REST API.
 
-##Updating the user's profile (redeeming the badge)
+####Putting it all together
+
+You should now have the following in your `badge.php` file:
+
+```php
+<?php
+
+	require 'vendor/autoload.php';
+	
+	session_start();
+	
+	$client = new \GuzzleHttp\Client();
+	$res = $client->request('GET', 'https://idea.org.uk/api/user', [
+		'http_errors' => false,
+		'headers' => [
+			'Authorization' => 'Bearer ' . $_SESSION['oauth2_access_token']
+		]
+	]);
+	
+	$user = json_decode($res->getBody());
+
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Genius Badge</title>
+</head>
+<body>
+	<h1>Welcome, <?=$user->name?></h1>
+	<p>
+		<img src="<?=$user->image_url?>" alt="Profile avatar image">
+	</p>
+	<p>
+		Are you a genius? <a href="badge-completed.php">Click here!</a>
+	</p>
+</body>
+</html>
+```
+
+##🏆 Updating the user's profile (redeeming the badge)
 
 We are now going to build our `badge_completed.php` page which is accessed when the user has successfuly completed the badge.
 
@@ -462,7 +566,35 @@ If redeemed successfully, the API will also give you a `return_url` which you sh
 
 With the badge redeemed, you are now ready to log the user out, and return them to the iDEA at the `return_url` specified.
 
-##Logging out
+####Putting it all together
+
+You should now have the following in your `badge-completed.php` file:
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+session_start();
+
+$client = new \GuzzleHttp\Client();
+
+$res = $client->request('POST', 'https://idea.org.uk/api/result', [
+	'http_errors' => false,
+	'headers' => [
+		'Authorization' => 'Bearer ' . $_SESSION['oauth2_access_token']
+	],
+	'json' => [
+		'result' => 'pass', // Or fail, if the badge was failed
+	]
+]);
+
+$response = json_decode($res->getBody());
+
+header("Location: logout.php?return_url=$return_url");
+```
+
+##👋 Logging out
 
 Before returning the user to iDEA, you should log them out from your badge site. We'll need a new file called `logout.php` to facilitate this.
 
@@ -506,7 +638,7 @@ $return_url = $_GET['return_url'] ?? 'https://www.idea.org.uk/';
 ```
 
 >####`??` operator####
->The `??` is the null coalescing operator. TODO: PHP 7 only?
+>The `??` is the null coalescing operator, which is available in PHP 7.0+. If you're using an earlier version of PHP you would need to do `$return_url = $_GET['return_url'] != NULL ? $_GET['return_url'] : 'https://www.idea.org.uk/';`
 
 Finally, we can redirect to the `return_uri`:
 
@@ -514,9 +646,25 @@ Finally, we can redirect to the `return_uri`:
 header("Location: $return_url");
 ```
 
+####Putting it all together
+
+You should now have the following in your `logout.php`:
+
+```php
+<?php
+
+session_start();
+
+session_destroy();
+
+$return_url = $_GET['return_url'] ?? 'https://www.idea.org.uk/';
+
+header("Location: $return_url");
+```
+
 At last, we are done! The user's badge journey is complete and they have been returned to the iDEA hub site.
 
-##Testing your badge site locally
+##🤔 Testing your badge site locally
 
 You can test your badge locally by opening a terminal at your badge site home directory, and run:
 
@@ -528,38 +676,103 @@ Which will start PHP's built-in web server on your local machine (`localhost`) o
 
 You can now open a browser at `http://localhost:8000` to visit your brand new badge site!
 
-###Troubleshooting
+##👍 Commit your code
 
-####Wrong Client ID/Client Secret
+If you haven't been committing your code to Git as you've been going along, then now that you have everything working you should make sure you commit your code before proceeding further.
 
-####Wrong `redirect_uri`
+Firstly, you should create a `.gitignore` file and add some exclusions for files which we don't want to include in our repository:
 
-##Deploying your badge site to Heroku
+* `.DS_Store` files are created by macOS and stores custom attributes of its containing folder; this is unnecessary clutter and doesn't need to be part of your repository.
+* `composer.phar` is the executable for Composer itself. This is not part of your project, so shouldn't be included in the repository to save space and avoid version conflicts with other developers.
+* `/vendor` contains your Composer packages. It is considered bad practice to include compiled dependencies with your project, so you should omit this folder from your repository (other developers can use composer to fetch and manage the dependencies themselves from your `composer.json`.
+
+Your `.gitignore` file should therefore look like this:
+
+```
+.DS_Store
+composer.phar
+/vendor
+```
+
+You need should stage all your files:
+
+`git add .`
+
+You can then commit your files, with a message:
+
+`git commit -m "It works!"`
+
+##🚀 Deploying your badge site to Heroku 
+
 ###Creating a Heroku account
-###Creating a dyno
-###Setting up git
-This should probably go at the beginning
-###Deploying
 
-##Trying out your badge live
+If you haven't already, you should now sign up for a free Heroku account at [www.heroku.com]().
 
-##Badge guidelines compliance
+###Installing the Heroku CLI
 
-###Logout
+Follow the guide for [Getting Started on Heroku with PHP](https://devcenter.heroku.com/articles/getting-started-with-php#set-up). This involves:
 
-Building the `logout.php` page.
+1. Downloading and istalling the Heroku CLI which will allow you to use Heroku from the terminal on your local machine.
 
-###Handling errors
 
-Redirect to `/error/generic`.
+2. Running `heroku login` in your badge site root directory to login to the Heroku CLI with your email address and Heroku password.
 
-###Security
-* Never expose the `access_token` or `id_token` to the user.
-* Never share the `access_token` with a third-party application.
-* Seek advice before sharing the `id_token` with third party applications.
+###Creating a new Heroku app
 
-##Next steps
-###Understanding JWTs
-###Doing cool stuff with the `id_token`
-###Using a framework
-Laravel
+>###Heroku apps and dynos
+>
+>A Heroku "app" is an application which runs on the Heroku platform, in this case in PHP. An app can run on one or more "dynos" - don't let the terminology confuse you, to keep things simple at this point you can just think of an app as a website.
+
+To create your app, simply run `heroku create` which will create a new (empty) Heroku app for you, with a random name:
+
+```
+$ heroku create
+Creating app... done, ⬢ arcane-brook-77567
+https://arcane-brook-77567.herokuapp.com/ | https://git.heroku.com/arcane-brook-77567.git
+```
+
+As you can see Heroku has generated a random name for our app (in this case `arcane-brook-77567`) and has also generated a website URL for us (https://arcane-brook-77567.herokuapp.com/) and a Git remote (https://git.heroku.com/arcane-brook-77567.git).
+
+If you visit the website (which you can do conveniently from the terminal using `heroku open`), you'll see a default home page ("Welcome to your new app!").
+
+###Push your code
+
+Your app doesn't have any code pushed to it yet, so to get more than just the default home page, you're going to need to upload your code. If you have used web hosting before then you might have used FTP to manually upload your HTML/PHP to your web server. Heroku is a bit more advanced than that and will do automatic deployments via your Git repository for you, so it very conveniently integrates directly into your Git workflow.
+
+The neat thing about `heroku create` is that not only did it create a new app on the Heroku service, it also create a new Git [remote](https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes) called `heroku` in your repository, preconfigured with the Git remote address above.
+
+You can now push directly to this remote using:
+
+`git push heroku master`
+
+You'll now see a load of text whizzing past the screen as Git uploads your code to the remote, and Heroku now unpacks it, analyses your project, installs any dependencies, and prepares your environment.
+
+###Setting environment variables
+
+Before we can run your badge site on Heroku, we also need to setup the environment variables on Heroku.
+
+The Heroku CLI provides a [convenient set of `config` commands](https://devcenter.heroku.com/articles/config-vars) which can be used to set, get and unset your environment variables.
+
+To set your environment variables, run the following:
+
+```
+heroku config:set GENIUS_BADGE_CLIENT_ID=__your_client_id__
+heroku config:set GENIUS_BADGE_CLIENT_SECRET=__your_client_secret__
+heroku config:set GENIUS_BADGE_REDIRECT_URI=http://__your_app_name__.herokuapp.com/callback.php
+```
+
+**IMPORTANT:** Notice that your redirect URI has now changed to point to your *.herokuapp.com URL instead of localhost. You now need to contact iDEA and get this URL added to your list of allowed callback URLs, otherwise you will get a "Callback URL mismatch" error from Auth0.
+
+##🤞 Trying out your badge live
+
+Once your new callback URL has been added to your Auth0 client, you are ready to now try out your badge live on Heroku.
+
+You can either navigate to your Heroku app URL, or type `heroku open` from your badge site root directory to open your site in your default browser.
+
+If you were already logged into the iDEA hub site, you should now find you are immediately automatically logged into your new badge site. If you weren't logged in to iDEA, you will be prompted by Auth0 to login first (visitors to your badge site generally won't have to login like this, as they'll already have a valid user session with the hub site so will skip the login step).
+
+You can click the link on the page to award yourself the points, and will be redirected back to the iDEA hub site.
+
+##🎉 Congratulations!
+
+**You have successfully setup a local development environment, built your own badge site in PHP, tested it lcoally and deployed it to Heroku for production.**
