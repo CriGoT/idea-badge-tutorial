@@ -222,7 +222,7 @@ header("Location: $authUrl");
 
 You can save this file as `index.php`, and are ready to proceed with the next step of the project.
 
-## 🤝 Exchange the authorization code for an access token
+## ♻️ Exchange the authorization code for an access token
 
 Once the user has finished authenticating with Auth0, they will then be redirected back to your badge site, at the `redirect_uri` you provided in your original redirect to Auth0.
 
