@@ -169,11 +169,12 @@ $_SESSION['oauth2_state'] = $state;
 
 ```
 
-Next, we need to build the authentication URL, to which the user is going to be redirected. The URL takes a fixed format of `https://idea.eu.auth0.com/i/oauth2/authorize` followed by a query string consisting of:
+Next, we need to build the authentication URL, to which the user is going to be redirected. The URL takes a fixed format of `https://idea.eu.auth0.com/authorize` followed by a query string consisting of:
 
 * `response_type` - the _response type_ that corresponds to the grant type we are using. In this case, we are building a server-side web application in PHP, so this should be set to `code`.
 * `client_id` - your Auth0 client ID, which is unique to your badge site.
 * `redirect_uri` - the URL to which the user should be redirected to, after completing the authentication with Auth0.
+* `prompt` - the _prompt_ value that defines how Auth0 should ask the user for credentials. this must always be *none* to ensure that the user has previosuly logged into iDEA before trying to access the Badge.
 * `scope` - the _scope_ of the attributes that should be contained within the access token that will be issed. In this case, we are only interested in the default `openid` attributes (more on those later).
 * `state` - the randomly state we generated earlier to protect against CSRF attacks. We need to send this to Auth0 with our request, so that Auth0 sends it back to us later in the process so we can be sure that the user intentionally authorized this request.
 
@@ -182,11 +183,12 @@ $params = [
    'response_type' => 'code',
    'client_id' => getenv('GENIUS_BADGE_CLIENT_ID'),
    'redirect_uri' => getenv('GENIUS_BADGE_REDIRECT_URI'),
+   'prompt' => 'none',  
    'scope' => 'openid',
    'state' => $state
 ];
 
-$authUrl = 'https://idea.eu.auth0.com/i/oauth2/authorize?' . http_build_query($params);
+$authUrl = 'https://idea.eu.auth0.com/authorize?' . http_build_query($params);
 ```
 
 Next, we redirect the user to this URL, by rewriting the `Location` HTTP header (this is the standard mechanism in PHP to perform an HTTP 302 redirect):
@@ -211,11 +213,12 @@ $params = [
    'response_type' => 'code',
    'client_id' => getenv('GENIUS_BADGE_CLIENT_ID'),
    'redirect_uri' => getenv('GENIUS_BADGE_REDIRECT_URI'),
+   'prompt' => 'none', 
    'scope' => 'openid',
    'state' => $state
 ];
 
-$authUrl = 'https://idea.eu.auth0.com/i/oauth2/authorize?' . http_build_query($params);
+$authUrl = 'https://idea.eu.auth0.com/authorize?' . http_build_query($params);
 
 header("Location: $authUrl");
 ```
@@ -226,10 +229,11 @@ You can save this file as `index.php`, and are ready to proceed with the next st
 
 Once the user has finished authenticating with Auth0, they will then be redirected back to your badge site, at the `redirect_uri` you provided in your original redirect to Auth0.
 
-The redirect back to your site will include two query string parameters in the URL:
+The redirect back to your site will include two of three possible query string parameters in the URL:
 
-* `state`, which should be the same value as the `state` value you randomly generated in the original redirect.
-* `code`, which is an authorization code issued by Auth0, which will need to be exchanged for a proper access token to allow you to access protected iDEA resources (such as getting a user's profile and updating their badge progress).
+* `state`, which should be the same value as the `state` value you randomly generated in the original redirect. This value must always be present.
+* `code`, which is an authorization code issued by Auth0, which will need to be exchanged for a proper access token to allow you to access protected iDEA resources (such as getting a user's profile and updating their badge progress). This value is only present if the authentication was successful
+* `error`. which is a code to identify the reason why the user could not be authenticated. This value is only present if the user has not logged in to iDEA or if the user can't access the Badge.
 
 We will now build the page that the user should be returned to, which we will call `callback.php`.
 
@@ -251,14 +255,26 @@ We also need to resume the session by calling `session_start()` (note that despi
 session_start();
 ```
 
-Next, we need to read the `state` and `code` parameters from the URL:
+Next, we need to read the `state`, `code` and `error` parameters from the URL:
 
 ```php
 $state = $_GET['state'];
 $code = $_GET['code'];
+$error = $_GET['error'];
 ```
 
-First, we need to check that the URL actually contains a `code` at all; if not, this would normally indicate that authentication failed for some reason:
+First, we need to check that the URL to see if it contains an `error` and its value. If the value is one of the following *login_required* , *consent_required* or *interaction_required* it means that the user has still to complete its login or registration in the iDEA websita. In this case we must redirect the user back to the iDEA website.
+
+```php
+if (isset($error)) {
+  if ($error === 'login_required' || $error === 'consent_required' || $error === 'interaction_required') {
+    header("Location: https://idea.org.uk/");
+    exit();
+  }
+}
+```
+
+Nest, we need to check that the URL actually contains a `code` at all; if not, this would normally indicate that authentication failed for some other reason:
 
 ```php
 if (!isset($code)) {
@@ -344,6 +360,14 @@ session_start();
 
 $state = $_GET['state'];
 $code = $_GET['code'];
+$error = $_GET['error'];
+
+if (isset($error)) {
+  if ($error === 'login_required' || $error === 'consent_required' || $error === 'interaction_required') {
+    header("Location: https://idea.org.uk/");
+    exit();
+  }
+}
 
 if (!isset($code)) {
    exit('Failed to get an authorization code');

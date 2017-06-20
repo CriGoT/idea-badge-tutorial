@@ -9,10 +9,11 @@ $params = [
    'response_type' => 'code',
    'client_id' => getenv('GENIUS_BADGE_CLIENT_ID'),
    'redirect_uri' => getenv('GENIUS_BADGE_REDIRECT_URI'),
+   'prompt' => 'none',
    'scope' => 'openid',
    'state' => $state
 ];
 
-$authUrl = 'https://idea.eu.auth0.com/i/oauth2/authorize?' . http_build_query($params);
+$authUrl = 'https://idea.eu.auth0.com/authorize?' . http_build_query($params);
 
 header("Location: $authUrl");

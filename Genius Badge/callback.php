@@ -6,6 +6,14 @@ session_start();
 
 $state = $_GET['state'];
 $code = $_GET['code'];
+$error = $_GET['error'];
+
+if (isset($error)) {
+  if ($error === 'login_required' || $error === 'consent_required' || $error === 'interaction_required') {
+    header("Location: https://idea.org.uk/");
+    exit();
+  }
+}
 
 if (!isset($code)) {
    exit('Failed to get an authorization code');
@@ -15,6 +23,7 @@ if (isset($state) && $state !== $_SESSION['oauth2_state']) {
 	session_destroy();
 	exit('OAuth2 invalid state!');
 }
+
 
 $client = new \GuzzleHttp\Client();
 
